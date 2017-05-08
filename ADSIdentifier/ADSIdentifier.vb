@@ -89,6 +89,7 @@ Module ADSIdentifier
         Dim sItem As String = StartingFolder
         Dim iErr As Int32 = 0
         Dim iResult As Int32 = FindFirstStream(StartingFolder, StreamInfoLevels.FindStreamInfoStandard, fsd, 0)
+        Dim iResDel As Int32
         If iResult = INVALID_HANDLE_VALUE Then
             iErr = GetLastError()
         Else
@@ -105,7 +106,11 @@ Module ADSIdentifier
                         Console.WriteLine()
                     End If
                     If bDelete Then
-                        DeleteFile(StartingFolder & fsd.cStreamName)
+                        iResDel = DeleteFile(StartingFolder & fsd.cStreamName)
+                        If iResDel = 0 Then
+                            iErr = GetLastError()
+                            Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString)
+                        End If
                     End If
                 End If
             End If
@@ -133,6 +138,10 @@ Module ADSIdentifier
                             End If
                             If bDelete Then
                                 DeleteFile(StartingFolder & fsd.cStreamName)
+                                If iResDel = 0 Then
+                                    iErr = GetLastError()
+                                    Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString)
+                                End If
                             End If
                         End If
                     End If
@@ -165,6 +174,10 @@ Module ADSIdentifier
                                 End If
                                 If bDelete Then
                                     DeleteFile(sFile & fsd.cStreamName)
+                                    If iResDel = 0 Then
+                                        iErr = GetLastError()
+                                        Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString)
+                                    End If
                                 End If
                             End If
                         End If
@@ -196,6 +209,10 @@ Module ADSIdentifier
                                         End If
                                         If bDelete Then
                                             DeleteFile(sFile & fsd.cStreamName)
+                                            If iResDel = 0 Then
+                                                iErr = GetLastError()
+                                                Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString)
+                                            End If
                                         End If
                                     End If
                                 End If
