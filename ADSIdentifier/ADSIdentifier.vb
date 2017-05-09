@@ -1,4 +1,4 @@
-﻿Option Compare Text
+﻿Option Compare Text ' NTFS is case-insensitive by default
 Option Explicit On
 Option Strict Off
 Option Infer Off
@@ -192,16 +192,14 @@ Module ADSIdentifier
             FindClose(iResult)
         End If
         Try
-            'For Each sFile As String In My.Computer.FileSystem.GetFiles(StartingFolder)
             For Each sFile As FileInfo In GetFiles(StartingFolder)
                 If Debug Then Console.WriteLine(sFile.Name)
-                'Dim fa As IO.FileAttributes = My.Computer.FileSystem.GetFileInfo(sFile).Attributes
                 If (sFile.Attributes And IO.FileAttributes.ReparsePoint) <> IO.FileAttributes.ReparsePoint Then
                     sItem = sFile.Name
                     iResult = FindFirstStream(sFile.Name, StreamInfoLevels.FindStreamInfoStandard, fsd, 0)
                     iErr = GetLastError()
                     If iResult <> INVALID_HANDLE_VALUE Then
-                        If fsd.cStreamName <> "::$DATA" And (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) And fsd.cStreamName Like Pattern Then
+                        If fsd.cStreamName <> "::$DATA" AndAlso (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) AndAlso fsd.cStreamName Like Pattern Then
                             Console.WriteLine(sFile.Name & fsd.cStreamName.Replace(":$DATA", ""))
                             If DeleteStreams Then
                                 Dim bDelete As Boolean = True
@@ -236,7 +234,7 @@ Module ADSIdentifier
                                 End If
                                 Exit While
                             Else ' we've found another stream - report the details
-                                If fsd.cStreamName <> "::$DATA" And (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) And fsd.cStreamName Like Pattern Then
+                                If fsd.cStreamName <> "::$DATA" AndAlso (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) AndAlso fsd.cStreamName Like Pattern Then
                                     Console.WriteLine(sFile.Name & fsd.cStreamName.Replace(":$DATA", ""))
                                     If DeleteStreams Then
                                         Dim bDelete As Boolean = True
@@ -262,9 +260,7 @@ Module ADSIdentifier
                     End If
                 End If
             Next
-            'For Each folder As String In My.Computer.FileSystem.GetDirectories(StartingFolder, FileIO.SearchOption.SearchTopLevelOnly)
             For Each folder As FileInfo In GetFolders(StartingFolder)
-                'Dim fa As IO.FileAttributes = My.Computer.FileSystem.GetFileInfo(folder).Attributes
                 If (folder.Attributes And IO.FileAttributes.ReparsePoint) <> IO.FileAttributes.ReparsePoint Then
                     sItem = folder.Name
                     GetStreams(StartingFolder:=folder.Name, IgnoreZoneIdentifier:=IgnoreZoneIdentifier, Pause:=Pause, Pattern:=Pattern, DeleteStreams:=DeleteStreams, Debug:=Debug)
