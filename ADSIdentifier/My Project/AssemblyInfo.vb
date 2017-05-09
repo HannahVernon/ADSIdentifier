@@ -8,11 +8,11 @@ Imports System.Runtime.InteropServices
 
 ' Review the values of the assembly attributes
 
-<Assembly: AssemblyTitle("StreamIdentifier")>
-<Assembly: AssemblyDescription("")>
-<Assembly: AssemblyCompany("")>
-<Assembly: AssemblyProduct("StreamIdentifier")>
-<Assembly: AssemblyCopyright("Copyright ©  2017")>
+<Assembly: AssemblyTitle("ADSIdentifier")>
+<Assembly: AssemblyDescription("NTFS Alternate Data Stream Identifier by Max Vernon")>
+<Assembly: AssemblyCompany("MVCT Software Design and Consulting Inc")>
+<Assembly: AssemblyProduct("ADSIdentifier")>
+<Assembly: AssemblyCopyright("Copyright ©  2017 MVCT")>
 <Assembly: AssemblyTrademark("")>
 
 <Assembly: ComVisible(False)>
@@ -31,5 +31,4 @@ Imports System.Runtime.InteropServices
 ' by using the '*' as shown below:
 ' <Assembly: AssemblyVersion("1.0.*")>
 
-<Assembly: AssemblyVersion("1.0.0.0")>
-<Assembly: AssemblyFileVersion("1.0.0.0")>
+<Assembly: AssemblyVersion("17.5.8.820")>

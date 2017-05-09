@@ -6,7 +6,7 @@ Option Infer Off
 Imports System
 Imports System.Runtime.InteropServices
 
-Module ADSIdentifier
+Module NativeMethods
 
     Public Enum StreamInfoLevels As Int32
         FindStreamInfoStandard = 0
@@ -16,18 +16,24 @@ Module ADSIdentifier
     Public Const INVALID_HANDLE_VALUE As Int32 = -1
     Public Const ERROR_HANDLE_EOF As Int32 = 38
 
+    <StructLayout(LayoutKind.Explicit)>
+    Public Structure LARGE_INTEGER
+        <FieldOffset(0)> Dim Low As Int32
+        <FieldOffset(4)> Dim High As Int32
+    End Structure
+
     <StructLayout(LayoutKind.Sequential, CharSet:=CharSet.Unicode)>
     Public Structure _WIN32_FIND_STREAM_DATA
-        <MarshalAs(UnmanagedType.I8)> Dim StreamSize As Int64
+        Dim StreamSize As LARGE_INTEGER ' <MarshalAs(UnmanagedType.I8)> 
         <MarshalAs(UnmanagedType.ByValTStr, SizeConst:=296)> Dim cStreamName As String ' 260 (max_path) + 36
     End Structure
 
     <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="FindFirstStreamW")>
-    Function FindFirstStream(<MarshalAs(UnmanagedType.LPWStr)> ByVal lpFileName As String, ByVal InfoLevel As StreamInfoLevels, ByRef lpFindStreamData As _WIN32_FIND_STREAM_DATA, ByVal dwFlags As Int16) As IntPtr
+    Function FindFirstStream(<MarshalAs(UnmanagedType.LPWStr)> ByVal lpFileName As String, ByVal InfoLevel As StreamInfoLevels, ByRef lpFindStreamData As _WIN32_FIND_STREAM_DATA, ByVal dwFlags As Int32) As IntPtr
     End Function
 
     <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="FindNextStreamW")>
-    Function FindNextStream(ByVal hFindStream As IntPtr, ByRef lpFindStreamData As _WIN32_FIND_STREAM_DATA) As IntPtr
+    Function FindNextStream(ByVal hFindStream As IntPtr, ByRef lpFindStreamData As _WIN32_FIND_STREAM_DATA) As Int32
     End Function
 
     <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="DeleteFile")>
@@ -41,6 +47,10 @@ Module ADSIdentifier
     <DllImport("kernel32.dll")>
     Public Function GetLastError() As Int32
     End Function
+
+End Module
+
+Module ADSIdentifier
 
     Sub Main()
         Dim sFolder As String = ""
@@ -88,11 +98,10 @@ Module ADSIdentifier
         Dim fsd As New _WIN32_FIND_STREAM_DATA
         Dim sItem As String = StartingFolder
         Dim iErr As Int32 = 0
-        Dim iResult As Int32 = FindFirstStream(StartingFolder, StreamInfoLevels.FindStreamInfoStandard, fsd, 0)
+        Dim iResult As IntPtr = FindFirstStream(StartingFolder, StreamInfoLevels.FindStreamInfoStandard, fsd, 0)
+        iErr = GetLastError()
         Dim iResDel As Int32
-        If iResult = INVALID_HANDLE_VALUE Then
-            iErr = GetLastError()
-        Else
+        If iResult <> INVALID_HANDLE_VALUE Then
             If (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) And fsd.cStreamName Like Pattern Then
                 Console.WriteLine(StartingFolder & fsd.cStreamName.Replace(":$DATA", ""))
                 If DeleteStreams Then
@@ -157,9 +166,8 @@ Module ADSIdentifier
                 If (fa And IO.FileAttributes.ReparsePoint) <> IO.FileAttributes.ReparsePoint Then
                     sItem = sFile
                     iResult = FindFirstStream(sFile, StreamInfoLevels.FindStreamInfoStandard, fsd, 0)
-                    If iResult = INVALID_HANDLE_VALUE Then
-                        iErr = GetLastError()
-                    Else
+                    iErr = GetLastError()
+                    If iResult <> INVALID_HANDLE_VALUE Then
                         If fsd.cStreamName <> "::$DATA" And (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) And fsd.cStreamName Like Pattern Then
                             Console.WriteLine(sFile & fsd.cStreamName.Replace(":$DATA", ""))
                             If DeleteStreams Then
