@@ -36,7 +36,7 @@ Module NativeMethods
     Function FindNextStream(ByVal hFindStream As IntPtr, ByRef lpFindStreamData As _WIN32_FIND_STREAM_DATA) As Int32
     End Function
 
-    <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="DeleteFile")>
+    <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="DeleteFileW")>
     Function DeleteFile(ByVal lpFileName As String) As Boolean
     End Function
 
@@ -158,7 +158,7 @@ Module ADSIdentifier
             End While
         End If
         If iErr <> 38 And iResult <> -1 Then
-            FileClose(iResult)
+            FindClose(iResult)
         End If
         Try
             For Each sFile As String In My.Computer.FileSystem.GetFiles(StartingFolder)
@@ -198,7 +198,7 @@ Module ADSIdentifier
                                     Console.Error.WriteLine("Error: " & iErr)
                                 Else
                                     If iRes <> -1 Then
-                                        FileClose(iRes)
+                                        FindClose(iRes)
                                     End If
                                 End If
                                 Exit While
