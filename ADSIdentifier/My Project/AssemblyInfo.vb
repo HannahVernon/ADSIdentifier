@@ -31,4 +31,5 @@ Imports System.Runtime.InteropServices
 ' by using the '*' as shown below:
 ' <Assembly: AssemblyVersion("1.0.*")>
 
-<Assembly: AssemblyVersion("17.5.9.1450")>
+<Assembly: AssemblyVersion("17.5.17.907")>
+' 17.5.17.907  - Size of streams is now displayed by default.

@@ -44,6 +44,13 @@ Module NativeMethods
         <MarshalAs(UnmanagedType.ByValTStr, SizeConst:=14)> Public cAlternateFileName As String
     End Structure
 
+    <StructLayout(LayoutKind.Sequential, CharSet:=CharSet.Unicode)>
+    Structure WIN32_SECURITY_ATTRIBUTES
+        Public nLength As Int32
+        Public lpSecurityDescriptor As IntPtr
+        Public bInheritHandle As Boolean
+    End Structure
+
     <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="FindFirstStreamW")>
     Function FindFirstStream(<MarshalAs(UnmanagedType.LPWStr)> ByVal lpFileName As String, ByVal InfoLevel As StreamInfoLevels, ByRef lpFindStreamData As WIN32_FIND_STREAM_DATA, ByVal dwFlags As Int32) As IntPtr
     End Function
@@ -71,6 +78,45 @@ Module NativeMethods
     <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="FindNextFileW")>
     Public Function FindNextFile(ByVal hFindFile As IntPtr, ByRef lpFindFileData As WIN32_FIND_DATA) As Boolean
     End Function
+
+    <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="CreateFileW")>
+    Public Function CreateFile(ByVal lpFileName As String, ByVal dwDesiredAccess As Int32, ByVal dwShareMode As Int32, ByRef lpSecurityAttributes As WIN32_SECURITY_ATTRIBUTES, ByVal dwCreationDisposition As Int32, ByVal dwFlagsAndAttributes As Int32, ByVal hTemplateFile As IntPtr) As IntPtr
+    End Function
+
+    <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="GetFileTime")>
+    Public Function GetFileTime(ByVal hFile As IntPtr, ByRef lpCreationTime As FILETIME, ByRef lpLastAccessTime As FILETIME, ByRef lpLastWriteTime As FILETIME) As Boolean
+    End Function
+
+    <StructLayout(LayoutKind.Sequential)>
+    Public Structure FILETIME
+        Public dwLowDateTime As UInteger
+        Public dwHighDateTime As UInteger
+
+        Public ReadOnly Property Value() As ULong
+            Get
+                Dim h As ULong = dwHighDateTime
+                Dim l As ULong = dwLowDateTime
+                Return (h << 32) + l
+            End Get
+        End Property
+        Public ReadOnly Property DateTime As DateTime
+            Get
+                Return DateTime.FromFileTime(Me.Value)
+            End Get
+        End Property
+    End Structure
+
+    <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="FileTimeToLocalFileTime")>
+    Public Function FileTimeToLocalFileTime(ByRef lpFileTime As FILETIME, ByRef lpLocalFileTime As FILETIME) As Boolean
+    End Function
+
+    <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="FileTimeToSystemTime")>
+    Public Function FileTimeToSystemTime(ByRef lpFileTime As FILETIME, ByRef lpLocalFileTime As FILETIME) As Boolean
+    End Function
+
+    <DllImport("kernel32.dll", CharSet:=CharSet.Unicode, EntryPoint:="CloseHandle")>
+    Public Function CloseHandle(ByVal handle As IntPtr) As Boolean
+    End Function
 End Module
 
 Module ADSIdentifier
@@ -82,6 +128,7 @@ Module ADSIdentifier
         Dim sPattern As String = ""
         Dim bDeleteStreams As Boolean = False
         Dim bDebug As Boolean = False
+        Dim bBare As Boolean = False
         For Each sItem As String In My.Application.CommandLineArgs
             If sItem.ToUpper.StartsWith("/FOLDER:") Then
                 sFolder = Right(sItem, Len(sItem) - 8)
@@ -101,18 +148,35 @@ Module ADSIdentifier
             If sItem.ToUpper = "/D" Or sItem.ToUpper = "/DEBUG" Then
                 bDebug = True
             End If
+            If sItem.ToUpper = "/B" Or sItem.ToUpper = "/BARE" Then
+                bBare = True
+            End If
         Next
         If sPattern = "" Then sPattern = "*"
         If Left(sPattern, 1) <> "*" Then sPattern = "*" & sPattern
         If Right(sPattern, 1) <> "*" Then sPattern = sPattern & "*"
+        Console.WriteLine("ADSIdentifier.exe v" & My.Application.Info.Version.ToString)
         If sFolder <> "" Then
-            GetStreams(sFolder, bIgnoreZoneIdentifier, bPause, sPattern, bDeleteStreams, bDebug)
+            Console.WriteLine("Searching for Alternate Data Streams in " & sFolder)
+            Console.WriteLine("Pattern Match: " & sPattern)
+            Console.WriteLine("Alternate Data Streams will " & IIf(bDeleteStreams, "", "not") & " be deleted.")
+            If bIgnoreZoneIdentifier Then
+                Console.WriteLine("Zone.Identifier streams will be ignored.")
+            End If
+            If bBare = False Then
+                Console.WriteLine("")
+                Console.WriteLine("Create Date            Size in Bytes   Stream Name")
+                Console.WriteLine("--------------------------------------------------")
+            End If
+            GetStreams(sFolder, bIgnoreZoneIdentifier, bPause, sPattern, bDeleteStreams, bDebug, bBare)
         Else
             Console.WriteLine("Useage is:   ADSIdentifier.exe /Folder:<starting_folder_name>")
             Console.WriteLine("                  [/P] or [/Pause] - pause before exiting")
             Console.WriteLine("                  [/IZI] or [/IgnoreZoneIdentifier] - ignore :Zone.Identifier streams")
             Console.WriteLine("                  [/Pattern:<xyz>] - only find Alternate Data Streams matching <xyz>")
-            Console.WriteLine("                  [/Remove] - remove Alternate Data Streams that have been found matching the other parameters")
+            Console.WriteLine("                  [/r] or [/Remove] - remove Alternate Data Streams that have been found matching the other parameters")
+            Console.WriteLine("                  [/ns] or [/nosize] - don't display alternate data stream sizes in the output")
+            Console.WriteLine("                  [/d] or [/debug] - show debugging details")
         End If
         If bPause Then
             Do Until Console.KeyAvailable = False
@@ -124,7 +188,7 @@ Module ADSIdentifier
         End If
     End Sub
 
-    Sub GetStreams(ByVal StartingFolder As String, ByVal IgnoreZoneIdentifier As Boolean, ByVal Pause As Boolean, ByVal Pattern As String, ByVal DeleteStreams As Boolean, ByVal Debug As Boolean)
+    Sub GetStreams(ByVal StartingFolder As String, ByVal IgnoreZoneIdentifier As Boolean, ByVal Pause As Boolean, ByVal Pattern As String, ByVal DeleteStreams As Boolean, ByVal Debug As Boolean, ByVal Bare As Boolean)
         Dim fsd As New WIN32_FIND_STREAM_DATA
         Dim sItem As String = StartingFolder
         Dim iErr As Int32 = 0
@@ -132,9 +196,16 @@ Module ADSIdentifier
         Dim iResult As IntPtr = FindFirstStream(StartingFolder, StreamInfoLevels.FindStreamInfoStandard, fsd, 0)
         iErr = GetLastError()
         Dim iResDel As Int32
+        Dim sSize As String = ""
         If iResult <> INVALID_HANDLE_VALUE Then
             If (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) And fsd.cStreamName Like Pattern Then
-                Console.WriteLine(StartingFolder & fsd.cStreamName.Replace(":$DATA", ""))
+                If Bare = False Then
+                    sSize = Strings.RSet((fsd.StreamSize.Low + (fsd.StreamSize.High << 32)).ToString, 14) & "   "
+                    sSize = Strings.LSet(GetFileCreateTime(StartingFolder & fsd.cStreamName.Replace(":$DATA", "")), 22) & " " & sSize
+                Else
+                    sSize = ""
+                End If
+                Console.WriteLine(sSize & StartingFolder & fsd.cStreamName.Replace(":$DATA", ""))
                 If DeleteStreams Then
                     Dim bDelete As Boolean = True
                     If Pause Then
@@ -165,7 +236,13 @@ Module ADSIdentifier
                     Exit While
                 Else ' we've found another stream, report it
                     If (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) And fsd.cStreamName Like Pattern Then
-                        Console.WriteLine(StartingFolder & fsd.cStreamName.Replace(":$DATA", ""))
+                        If Bare = False Then
+                            sSize = Strings.RSet((fsd.StreamSize.Low + (fsd.StreamSize.High << 32)).ToString, 14) & "   "
+                            sSize = Strings.LSet(GetFileCreateTime(StartingFolder & fsd.cStreamName.Replace(":$DATA", "")), 22) & " " & sSize
+                        Else
+                            sSize = ""
+                        End If
+                        Console.WriteLine(sSize & StartingFolder & fsd.cStreamName.Replace(":$DATA", ""))
                         If DeleteStreams Then
                             Dim bDelete As Boolean = True
                             If Pause Then
@@ -200,7 +277,13 @@ Module ADSIdentifier
                     iErr = GetLastError()
                     If iResult <> INVALID_HANDLE_VALUE Then
                         If fsd.cStreamName <> "::$DATA" AndAlso (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) AndAlso fsd.cStreamName Like Pattern Then
-                            Console.WriteLine(sFile.Name & fsd.cStreamName.Replace(":$DATA", ""))
+                            If Bare = False Then
+                                sSize = Strings.RSet((fsd.StreamSize.Low + (fsd.StreamSize.High << 32)).ToString, 14) & "   "
+                                sSize = Strings.LSet(GetFileCreateTime(StartingFolder & fsd.cStreamName.Replace(":$DATA", "")), 22) & " " & sSize
+                            Else
+                                sSize = ""
+                            End If
+                            Console.WriteLine(sSize & sFile.Name & fsd.cStreamName.Replace(":$DATA", ""))
                             If DeleteStreams Then
                                 Dim bDelete As Boolean = True
                                 If Pause Then
@@ -235,7 +318,13 @@ Module ADSIdentifier
                                 Exit While
                             Else ' we've found another stream - report the details
                                 If fsd.cStreamName <> "::$DATA" AndAlso (Not fsd.cStreamName Like ":Zone.Identifier*" Or IgnoreZoneIdentifier = False) AndAlso fsd.cStreamName Like Pattern Then
-                                    Console.WriteLine(sFile.Name & fsd.cStreamName.Replace(":$DATA", ""))
+                                    If Bare = False Then
+                                        sSize = Strings.RSet((fsd.StreamSize.Low + (fsd.StreamSize.High << 32)).ToString, 14) & "   "
+                                        sSize = Strings.LSet(GetFileCreateTime(StartingFolder & fsd.cStreamName.Replace(":$DATA", "")), 22) & " " & sSize
+                                    Else
+                                        sSize = ""
+                                    End If
+                                    Console.WriteLine(sSize & sFile.Name & fsd.cStreamName.Replace(":$DATA", ""))
                                     If DeleteStreams Then
                                         Dim bDelete As Boolean = True
                                         If Pause Then
@@ -263,7 +352,7 @@ Module ADSIdentifier
             For Each folder As FileInfo In GetFolders(StartingFolder)
                 If (folder.Attributes And IO.FileAttributes.ReparsePoint) <> IO.FileAttributes.ReparsePoint Then
                     sItem = folder.Name
-                    GetStreams(StartingFolder:=folder.Name, IgnoreZoneIdentifier:=IgnoreZoneIdentifier, Pause:=Pause, Pattern:=Pattern, DeleteStreams:=DeleteStreams, Debug:=Debug)
+                    GetStreams(StartingFolder:=folder.Name, IgnoreZoneIdentifier:=IgnoreZoneIdentifier, Pause:=Pause, Pattern:=Pattern, DeleteStreams:=DeleteStreams, Debug:=Debug, Bare:=Bare)
                 End If
             Next
         Catch ex As System.UnauthorizedAccessException
@@ -378,6 +467,24 @@ Module ADSIdentifier
             FindClose(iHandle)
         End If
         Return Files
+    End Function
+
+    Public Function GetFileCreateTime(ByVal FileName As String) As DateTime
+        Dim bRes As IntPtr = NativeMethods.CreateFile(FileName, &H80000000, 7, Nothing, 3, 0, Nothing)
+        If bRes <> NativeMethods.INVALID_HANDLE_VALUE Then
+            Dim iFileCreate As NativeMethods.FILETIME
+            Dim iFileAccess As NativeMethods.FILETIME
+            Dim iFileWrite As NativeMethods.FILETIME
+            bRes = NativeMethods.GetFileTime(bRes, iFileCreate, iFileAccess, iFileWrite)
+            If bRes Then
+                NativeMethods.CloseHandle(bRes)
+                Return iFileCreate.DateTime
+            Else
+                Return Nothing
+            End If
+        Else
+            Return Nothing
+        End If
     End Function
 
 End Module
