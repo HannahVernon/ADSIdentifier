@@ -217,10 +217,10 @@ Module ADSIdentifier
                         Console.WriteLine()
                     End If
                     If bDelete Then
-                        iResDel = DeleteFile(StartingFolder & fsd.cStreamName)
+                        iResDel = DeleteFile(StartingFolder & fsd.cStreamName.Replace(":$DATA", ""))
                         If iResDel = 0 Then
                             iErr = GetLastError()
-                            Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString & " while attempting to delete: '" & StartingFolder & fsd.cStreamName & "'")
+                            Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString & " while attempting to delete: '" & StartingFolder & fsd.cStreamName.Replace(":$DATA", "") & "'")
                         End If
                     End If
                 End If
@@ -254,10 +254,10 @@ Module ADSIdentifier
                                 Console.WriteLine()
                             End If
                             If bDelete Then
-                                DeleteFile(StartingFolder & fsd.cStreamName)
+                                DeleteFile(StartingFolder & fsd.cStreamName.Replace(":$DATA", ""))
                                 If iResDel = 0 Then
                                     iErr = GetLastError()
-                                    Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString & " while attempting to delete: '" & StartingFolder & fsd.cStreamName & "'")
+                                    Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString & " while attempting to delete: '" & StartingFolder & fsd.cStreamName.Replace(":$DATA", "") & "'")
                                 End If
                             End If
                         End If
@@ -295,10 +295,10 @@ Module ADSIdentifier
                                     Console.WriteLine()
                                 End If
                                 If bDelete Then
-                                    DeleteFile(sFile.Name & fsd.cStreamName)
+                                    DeleteFile(sFile.Name & fsd.cStreamName.Replace(":$DATA", ""))
                                     If iResDel = 0 Then
                                         iErr = GetLastError()
-                                        Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString & " while attempting to delete: '" & sFile.Name & fsd.cStreamName & "'")
+                                        Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString & " while attempting to delete: '" & sFile.Name & fsd.cStreamName.Replace(":$DATA", "") & "'")
                                     End If
                                 End If
                             End If
@@ -336,10 +336,10 @@ Module ADSIdentifier
                                             Console.WriteLine()
                                         End If
                                         If bDelete Then
-                                            DeleteFile(sFile.Name & fsd.cStreamName)
+                                            DeleteFile(sFile.Name & fsd.cStreamName.Replace(":$DATA", ""))
                                             If iResDel = 0 Then
                                                 iErr = GetLastError()
-                                                Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString & " while attempting to delete: '" & sFile.Name & fsd.cStreamName & "'")
+                                                Console.Error.WriteLine("DeleteFile failed with error: " & iErr.ToString & " while attempting to delete: '" & sFile.Name & fsd.cStreamName.Replace(":$DATA", "") & "'")
                                             End If
                                         End If
                                     End If
