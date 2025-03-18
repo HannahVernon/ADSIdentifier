@@ -1,5 +1,5 @@
 # ADSIdentifier
-NTFS Alternate Data Streams Identifier by Max Vernon
+NTFS Alternate Data Streams Identifier by Hannah Vernon
 
 This project provides a Windows-based command-line application that identifies, and optionally removes, NTFS Alternate Data Streams.
 
